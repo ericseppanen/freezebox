@@ -1,0 +1,18 @@
+[package]
+name = "freezebox"
+description = "FreezeBox: a deref'able lazy-initialized container"
+keywords = ["lock-free", "atomic", "container", "lazy", "deref"]
+categories = ["concurrency", "data-structures", "memory-management"]
+version = "0.1.0"
+repository = "https://github.com/ericseppanen/freezebox"
+license = "MIT"
+authors = ["Eric Seppanen <eds@reric.net>"]
+readme = "README.md"
+edition = "2018"
+
+[dependencies]
+# No dependencies, yay!
+
+[package.metadata.release]
+no-dev-version = true
+pre-release-commit-message = "release {{version}}"
