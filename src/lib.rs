@@ -64,9 +64,24 @@ pub struct FreezeBox<T> {
 }
 
 impl<T> FreezeBox<T> {
-    /// Create an uninitialized `FreezeBox`.
-    pub fn new() -> Self {
-        Self::default()
+    /// Create a new `FreezeBox` with optional initialization.
+    ///
+    /// A pre-inititialized `FreezeBox<T>` may not seem very useful, but it
+    /// can be convenient when interacting with structs or interfaces that
+    /// require a `FreezeBox`, e.g. unit tests.
+    ///
+    /// To always create an uninitialized `FreezeBox`, use
+    /// `FreezeBox::default()`.
+    ///
+    pub fn new(val: Option<T>) -> Self {
+        match val {
+            None => Self::default(),
+            Some(v) => {
+                let fb = Self::default();
+                fb.lazy_init(v);
+                fb
+            }
+        }
     }
 
     /// Initialize a `FreezeBox`.
@@ -156,7 +171,7 @@ mod tests {
     fn freezebox_test() {
         // Arc is used to check whether drop occurred.
         let x = Arc::new("hello".to_string());
-        let y: FreezeBox<Arc<String>> = FreezeBox::new();
+        let y: FreezeBox<Arc<String>> = FreezeBox::default();
         y.lazy_init(x.clone());
         // explicit deref once for FreezeBox and once for Arc.
         assert_eq!(**y, "hello");
@@ -173,7 +188,7 @@ mod tests {
     #[should_panic]
     #[cfg_attr(miri, ignore)] // Miri doesn't understand should_panic
     fn freezebox_panic_test() {
-        let x = FreezeBox::<String>::new();
+        let x = FreezeBox::<String>::default();
         // dot-operator implicitly deref's the FreezeBox.
         let _y = x.len();
     }
