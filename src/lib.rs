@@ -99,6 +99,7 @@ impl<T> FreezeBox<T> {
         }
     }
 
+    /// Test whether a FreezeBox is initialized.
     pub fn is_initialized(&self) -> bool {
         let inner = self.inner.load(Ordering::Acquire);
         inner != null_mut()
