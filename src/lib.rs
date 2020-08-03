@@ -29,7 +29,11 @@
 //! let res2 = resources.clone();
 //!
 //! let func = move || {
+//!     // explicit deref
 //!     assert_eq!(*res2.name, "Hello!");
+//!     // implicit deref allows transparent access
+//!     assert_eq!(res2.name.len(), 6);
+//!     assert_eq!(&res2.name[2..], "llo!");
 //! };
 //!
 //! resources.name.lazy_init("Hello!".to_string());
