@@ -98,6 +98,11 @@ impl<T> FreezeBox<T> {
             );
         }
     }
+
+    pub fn is_initialized(&self) -> bool {
+        let inner = self.inner.load(Ordering::Acquire);
+        inner != null_mut()
+    }
 }
 
 impl<T> Deref for FreezeBox<T> {
@@ -172,7 +177,9 @@ mod tests {
         // Arc is used to check whether drop occurred.
         let x = Arc::new("hello".to_string());
         let y: FreezeBox<Arc<String>> = FreezeBox::default();
+        assert!(!y.is_initialized());
         y.lazy_init(x.clone());
+        assert!(y.is_initialized());
         // explicit deref once for FreezeBox and once for Arc.
         assert_eq!(**y, "hello");
         // implicit deref sees through both layers.
