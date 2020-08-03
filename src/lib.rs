@@ -177,26 +177,4 @@ mod tests {
         // dot-operator implicitly deref's the FreezeBox.
         let _y = x.len();
     }
-
-    // #[test]
-    // fn test_send() {
-    //     use super::FreezeBox;
-    //     use std::rc::Rc;
-    //
-    //     fn require_send<T: Send>(_t: &T) {}
-    //
-    //     let x = FreezeBox::<Rc<u32>>::new();
-    //     require_send(&x); // <- must fail to compile.
-    // }
-    //
-    // #[test]
-    // fn test_sync() {
-    //     use super::FreezeBox;
-    //     use std::cell::Cell;
-    //
-    //     fn require_sync<T: Sync>(_t: &T) {}
-    //
-    //     let x = FreezeBox::<Cell<u32>>::new();
-    //     require_sync(&x); // must fail to compile.
-    // }
 }
