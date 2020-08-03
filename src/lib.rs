@@ -194,9 +194,18 @@ mod tests {
     #[test]
     #[should_panic]
     #[cfg_attr(miri, ignore)] // Miri doesn't understand should_panic
-    fn freezebox_panic_test() {
+    fn panic_deref() {
         let x = FreezeBox::<String>::default();
         // dot-operator implicitly deref's the FreezeBox.
         let _y = x.len();
+    }
+
+    #[test]
+    #[should_panic]
+    #[cfg_attr(miri, ignore)] // Miri doesn't understand should_panic
+    fn panic_double_init() {
+        let x = FreezeBox::<String>::default();
+        x.lazy_init("first".to_string());
+        x.lazy_init("second".to_string());
     }
 }
