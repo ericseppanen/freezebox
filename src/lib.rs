@@ -42,6 +42,7 @@
 
 use std::any::type_name;
 use std::marker::PhantomData;
+use std::mem;
 use std::ops::Deref;
 use std::ptr::null_mut;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -103,6 +104,19 @@ impl<T> FreezeBox<T> {
     pub fn is_initialized(&self) -> bool {
         let inner = self.inner.load(Ordering::Acquire);
         inner != null_mut()
+    }
+
+    /// Consume the FreezeBox and return its contents.
+    pub fn into_inner(self) -> Option<T> {
+        let ptr = self.inner.load(Ordering::Acquire);
+        // Prevent Drop::drop() from being called on the FreezeBox
+        // because we are transferring ownership elsewhere.
+        mem::forget(self);
+        if ptr == null_mut() {
+            return None;
+        }
+        let tmp_box = unsafe { Box::from_raw(ptr) };
+        Some(*tmp_box)
     }
 }
 
@@ -208,5 +222,17 @@ mod tests {
         let x = FreezeBox::<String>::default();
         x.lazy_init("first".to_string());
         x.lazy_init("second".to_string());
+    }
+
+    #[test]
+    fn consume_test() {
+        let x = FreezeBox::<String>::default();
+        x.lazy_init("hello".to_string());
+        let x2: Option<String> = x.into_inner();
+        assert_eq!(x2, Some("hello".to_string()));
+
+        let y = FreezeBox::<String>::default();
+        let y2: Option<String> = y.into_inner();
+        assert_eq!(y2, None);
     }
 }
