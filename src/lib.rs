@@ -41,6 +41,7 @@
 //! ```
 
 use std::any::type_name;
+use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ptr::null_mut;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -59,6 +60,7 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 /// will cause a panic.
 pub struct FreezeBox<T> {
     inner: AtomicPtr<T>,
+    phantom: PhantomData<T>,
 }
 
 impl<T> FreezeBox<T> {
@@ -102,6 +104,7 @@ impl<T> Default for FreezeBox<T> {
     fn default() -> Self {
         Self {
             inner: AtomicPtr::new(null_mut()),
+            phantom: PhantomData,
         }
     }
 }
@@ -120,6 +123,29 @@ impl<T> Drop for FreezeBox<T> {
         }
     }
 }
+
+/// Must fail to compile because FreezeBox<Rc> munt not be Send.
+/// ```compile_fail
+/// use freezebox::FreezeBox;
+/// use std::rc::Rc;
+///
+/// fn require_send<T: Send>(_t: &T) {}
+///
+/// let x = FreezeBox::<Rc<u32>>::new();
+/// require_send(&x); // <- must fail to compile.
+/// ```
+///
+/// Must fail to compile because FreezeBox<Cell> must not be Sync.
+/// ```compile_fail
+/// use freezebox::FreezeBox;
+/// use std::cell::Cell;
+///
+/// fn require_sync<T: Sync>(_t: &T) {}
+///
+/// let x = FreezeBox::<Cell<u32>>::new();
+/// require_sync(&x); // must fail to compile.
+/// ```
+struct _Unused {} // Only exists to get the compile-fail doctest
 
 #[cfg(test)]
 mod tests {
@@ -151,4 +177,26 @@ mod tests {
         // dot-operator implicitly deref's the FreezeBox.
         let _y = x.len();
     }
+
+    // #[test]
+    // fn test_send() {
+    //     use super::FreezeBox;
+    //     use std::rc::Rc;
+    //
+    //     fn require_send<T: Send>(_t: &T) {}
+    //
+    //     let x = FreezeBox::<Rc<u32>>::new();
+    //     require_send(&x); // <- must fail to compile.
+    // }
+    //
+    // #[test]
+    // fn test_sync() {
+    //     use super::FreezeBox;
+    //     use std::cell::Cell;
+    //
+    //     fn require_sync<T: Sync>(_t: &T) {}
+    //
+    //     let x = FreezeBox::<Cell<u32>>::new();
+    //     require_sync(&x); // must fail to compile.
+    // }
 }
