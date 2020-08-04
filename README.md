@@ -11,6 +11,9 @@ suitable for sharing objects first and initializing them later.
 Attempting to `lazy_init` more than once, or deref while uninitialized
 will cause a panic.
 
+FreezeBox is compatible with `no_std` projects (no feature flags needed).
+It may be used in any environment with a memory allocator.
+
 ### Example:
 This example creates a shared data structure, then circles back to
 initialize one member.

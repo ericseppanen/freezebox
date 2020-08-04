@@ -11,6 +11,9 @@
 //! Attempting to `lazy_init` more than once, or deref while uninitialized
 //! will cause a panic.
 //!
+//! FreezeBox is compatible with `no_std` projects (no feature flags needed).
+//! It may be used in any environment with a memory allocator.
+//!
 //! # Examples
 //!
 //! This example creates a shared data structure, then circles back to
@@ -40,12 +43,16 @@
 //! func();
 //! ```
 
-use std::any::type_name;
-use std::marker::PhantomData;
-use std::mem;
-use std::ops::Deref;
-use std::ptr::null_mut;
-use std::sync::atomic::{AtomicPtr, Ordering};
+#![no_std]
+
+extern crate alloc;
+use alloc::boxed::Box;
+use core::any::type_name;
+use core::marker::PhantomData;
+use core::mem;
+use core::ops::Deref;
+use core::ptr::null_mut;
+use core::sync::atomic::{AtomicPtr, Ordering};
 
 /// `FreezeBox` is a deref'able lazy-initialized container.
 ///
@@ -185,7 +192,9 @@ struct _Unused {} // Only exists to get the compile-fail doctest
 #[cfg(test)]
 mod tests {
     use super::FreezeBox;
-    use std::sync::Arc;
+    use alloc::sync::Arc;
+    use alloc::string::String;
+    use alloc::string::ToString;
 
     #[test]
     fn freezebox_test() {
