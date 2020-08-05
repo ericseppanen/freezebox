@@ -98,7 +98,7 @@ impl<T> FreezeBox<T> {
     pub fn lazy_init(&self, val: T) {
         let ptr = Box::into_raw(Box::new(val));
         let prev = self.inner.swap(ptr, Ordering::Release);
-        if prev != null_mut() {
+        if !prev.is_null() {
             // Note we will leak the value in prev.
             panic!(
                 "lazy_init on already-initialized FreezeBox<{}>",
@@ -109,8 +109,8 @@ impl<T> FreezeBox<T> {
 
     /// Test whether a FreezeBox is initialized.
     pub fn is_initialized(&self) -> bool {
-        let inner = self.inner.load(Ordering::Acquire);
-        inner != null_mut()
+        let ptr = self.inner.load(Ordering::Acquire);
+        !ptr.is_null()
     }
 
     /// Consume the FreezeBox and return its contents.
@@ -119,7 +119,7 @@ impl<T> FreezeBox<T> {
         // Prevent Drop::drop() from being called on the FreezeBox
         // because we are transferring ownership elsewhere.
         mem::forget(self);
-        if ptr == null_mut() {
+        if ptr.is_null() {
             return None;
         }
         let tmp_box = unsafe { Box::from_raw(ptr) };
@@ -157,7 +157,7 @@ impl<T> Drop for FreezeBox<T> {
         // to be atomic.
         let inner = self.inner.get_mut();
 
-        if *inner != null_mut() {
+        if !inner.is_null() {
             // We own an inner object.  Re-hydrate into a Box<T> so that
             // T's destructor may run.
             let _owned = unsafe { Box::<T>::from_raw(*inner) };
