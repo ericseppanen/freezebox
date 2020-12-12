@@ -192,9 +192,9 @@ struct _Unused {} // Only exists to get the compile-fail doctest
 #[cfg(test)]
 mod tests {
     use super::FreezeBox;
-    use alloc::sync::Arc;
     use alloc::string::String;
     use alloc::string::ToString;
+    use alloc::sync::Arc;
 
     #[test]
     fn freezebox_test() {
