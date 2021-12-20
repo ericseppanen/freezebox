@@ -51,7 +51,6 @@ use core::any::type_name;
 use core::marker::PhantomData;
 use core::mem;
 use core::ops::Deref;
-use core::ptr::null_mut;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
 /// `FreezeBox` is a deref'able lazy-initialized container.
@@ -145,7 +144,7 @@ impl<T> Deref for FreezeBox<T> {
 impl<T> Default for FreezeBox<T> {
     fn default() -> Self {
         Self {
-            inner: AtomicPtr::new(null_mut()),
+            inner: AtomicPtr::default(),
             phantom: PhantomData,
         }
     }
