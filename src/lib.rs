@@ -49,9 +49,9 @@ extern crate alloc;
 use alloc::boxed::Box;
 use core::any::type_name;
 use core::marker::PhantomData;
-use core::mem;
 use core::ops::Deref;
 use core::sync::atomic::{AtomicPtr, Ordering};
+use core::{mem, ptr};
 
 /// `FreezeBox` is a deref'able lazy-initialized container.
 ///
@@ -96,12 +96,37 @@ impl<T> FreezeBox<T> {
     /// `lazy_init` will panic if the `FreezeBox` is already initialized.
     pub fn lazy_init(&self, val: T) {
         let ptr = Box::into_raw(Box::new(val));
-        let prev = self.inner.swap(ptr, Ordering::Release);
-        if !prev.is_null() {
-            // Note we will leak the value in prev. This is intentional--
-            // there may be live references to the `prev` value. We also
-            // can't swap back, because by the time we succeed there may
-            // also be live references to the new value.
+
+        // Attempt to atomically swap from nullptr to `ptr`.
+        //
+        // Reasoning about the atomic ordering:
+        // On the success side, we don't care about the load ordering,
+        // only the store ordering, which must be `Release` or stronger.
+        // This is because if we succeed, the previous value was null,
+        // which is the state of a newly-created AtomicBox. So it's not
+        // possible for us to race with another thread storing the null
+        // pointer.
+        //
+        // On the failure side, we want to detect a race to double init,
+        // so we want the load to be `Acquire` or stronger.
+        //
+        // Because the success ordering must be equal or stronger to the
+        // failure ordering, we need to upgrade the success ordering to
+        // `AcqRel`.
+        //
+        // If this succeeds, the freezebox is now initialized.
+        if self
+            .inner
+            .compare_exchange(ptr::null_mut(), ptr, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            // The compare_exrchange failed, meaning a double-init was
+            // attempted and we should panic.
+            //
+            // Before we do, retake ownership of the new pointer so that
+            // we don't leak its memory.
+            let _val = unsafe { Box::<T>::from_raw(ptr) };
+
             panic!(
                 "lazy_init on already-initialized FreezeBox<{}>",
                 type_name::<T>()
@@ -227,8 +252,6 @@ mod tests {
 
     #[test]
     #[should_panic]
-    // This test leaks memory, and Miri would complain about it.
-    #[cfg_attr(miri, ignore)]
     fn panic_double_init() {
         let x = FreezeBox::<String>::default();
         x.lazy_init("first".to_string());
