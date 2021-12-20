@@ -98,7 +98,10 @@ impl<T> FreezeBox<T> {
         let ptr = Box::into_raw(Box::new(val));
         let prev = self.inner.swap(ptr, Ordering::Release);
         if !prev.is_null() {
-            // Note we will leak the value in prev.
+            // Note we will leak the value in prev. This is intentional--
+            // there may be live references to the `prev` value. We also
+            // can't swap back, because by the time we succeed there may
+            // also be live references to the new value.
             panic!(
                 "lazy_init on already-initialized FreezeBox<{}>",
                 type_name::<T>()
@@ -216,7 +219,6 @@ mod tests {
 
     #[test]
     #[should_panic]
-    #[cfg_attr(miri, ignore)] // Miri doesn't understand should_panic
     fn panic_deref() {
         let x = FreezeBox::<String>::default();
         // dot-operator implicitly deref's the FreezeBox.
@@ -225,7 +227,8 @@ mod tests {
 
     #[test]
     #[should_panic]
-    #[cfg_attr(miri, ignore)] // Miri doesn't understand should_panic
+    // This test leaks memory, and Miri would complain about it.
+    #[cfg_attr(miri, ignore)]
     fn panic_double_init() {
         let x = FreezeBox::<String>::default();
         x.lazy_init("first".to_string());
