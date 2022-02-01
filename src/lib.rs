@@ -14,6 +14,10 @@
 //! FreezeBox is compatible with `no_std` projects (no feature flags needed).
 //! It may be used in any environment with a memory allocator.
 //!
+//! FreezeBox uses unsafe code internally. To ensure soundness, the unit
+//! tests pass under Miri, and the unsafe code is simple and easy to
+//! understand.
+//!
 //! # Examples
 //!
 //! This example creates a shared data structure, then circles back to
@@ -23,20 +27,29 @@
 //! use freezebox::FreezeBox;
 //! use std::sync::Arc;
 //!
+//! /// A data structure that we will initialize lazily.
 //! #[derive(Default)]
 //! struct Resources {
 //!     name: FreezeBox<String>
 //! }
 //!
+//! // Create an instance of the `Resources` struct, which contains an
+//! // uninitialized `name` field.
 //! let resources = Arc::new(Resources::default());
+//!
+//! // Clone the Arc to emulate sharing with other threads, contexts,
+//! // or data structures.
 //! let res2 = resources.clone();
 //!
+//! // Here we emulate another thread accessing the shared data structure.
+//! // NOTE: it's still our responsibility to ensure that the FreezeBox
+//! // is initialized before anyone dereferences it.
+//! //
 //! let func = move || {
 //!     // explicit deref
 //!     assert_eq!(*res2.name, "Hello!");
-//!     // implicit deref allows transparent access
+//!     // implicit deref allows transparent access to inner methods
 //!     assert_eq!(res2.name.len(), 6);
-//!     assert_eq!(&res2.name[2..], "llo!");
 //! };
 //!
 //! resources.name.lazy_init("Hello!".to_string());
@@ -114,17 +127,23 @@ impl<T> FreezeBox<T> {
         // failure ordering, we need to upgrade the success ordering to
         // `AcqRel`.
         //
-        // If this succeeds, the freezebox is now initialized.
+        // If this succeeds, the FreezeBox is now initialized.
         if self
             .inner
             .compare_exchange(ptr::null_mut(), ptr, Ordering::AcqRel, Ordering::Acquire)
             .is_err()
         {
-            // The compare_exrchange failed, meaning a double-init was
+            // The compare_exchange failed, meaning a double-init was
             // attempted and we should panic.
             //
             // Before we do, retake ownership of the new pointer so that
             // we don't leak its memory.
+            //
+            // SAFETY: `ptr` was just created above using `Box::into_raw`.
+            // Because compare_exchange failed, we know that it is still
+            // the unique owner of the input value. So we can reclaim
+            // ownership here and drop the result.
+
             let _val = unsafe { Box::<T>::from_raw(ptr) };
 
             panic!(
@@ -149,6 +168,12 @@ impl<T> FreezeBox<T> {
         if ptr.is_null() {
             return None;
         }
+
+        // SAFETY: because we are consuming self, we must have sole ownership
+        // of the FreezeBox contents. `lazy_init` created `ptr` from an
+        // owning `Box<T>`, so it's safe for us to recreate that Box and drop
+        // it.
+
         let tmp_box = unsafe { Box::from_raw(ptr) };
         Some(*tmp_box)
     }
@@ -159,6 +184,17 @@ impl<T> Deref for FreezeBox<T> {
 
     fn deref(&self) -> &Self::Target {
         let inner = self.inner.load(Ordering::Acquire);
+
+        // SAFETY: the inner pointer can only be in two states:
+        // 1. Uninitialized (null pointer): inner_ref will be None, and we
+        //    should panic, because deref of an uninitialized FreezeBox is
+        //    not allowed. Note we never create an actual &T (which would be
+        //    undefined behavior).
+        // 2. Initialized (valid shared pointer): inner_ref will be Some(&T).
+        //    Because we own the inner memory, it's safe for us to hand out
+        //    shared references to the inner T for as long as the FreezeBox
+        //    lives.
+
         let inner_ref = unsafe { inner.as_ref() };
         inner_ref.unwrap_or_else(|| {
             panic!(
@@ -187,13 +223,19 @@ impl<T> Drop for FreezeBox<T> {
         if !inner.is_null() {
             // We own an inner object.  Re-hydrate into a Box<T> so that
             // T's destructor may run.
+            //
+            // SAFETY: We have exclusive access to the inner value, so we can
+            // safely drop the contents. We could also reset the pointer, but
+            // since this data structure is being dropped, this is the last
+            // time that pointer will be seen; so there's no point.
+
             let _owned = unsafe { Box::<T>::from_raw(*inner) };
             // _owned will drop here.
         }
     }
 }
 
-/// Must fail to compile because FreezeBox<Rc> munt not be Send.
+/// Must fail to compile because FreezeBox<Rc> must not be Send.
 /// ```compile_fail
 /// use freezebox::FreezeBox;
 /// use std::rc::Rc;
