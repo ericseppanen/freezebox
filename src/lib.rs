@@ -18,6 +18,8 @@
 //! tests pass under Miri, and the unsafe code is simple and easy to
 //! understand.
 //!
+//! The minimum supported Rust version is 1.48.
+//!
 //! # Examples
 //!
 //! This example creates a shared data structure, then circles back to
