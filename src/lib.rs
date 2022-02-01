@@ -57,6 +57,12 @@
 //! resources.name.lazy_init("Hello!".to_string());
 //! func();
 //! ```
+//! ## Not quite what you were looking for?
+//!
+//! There are many similar crates out there:
+//! - [lazy_static](https://docs.rs/lazy_static)
+//! - [once_cell](https://docs.rs/once_cell)
+//! - [double-checked-cell](https://docs.rs/double-checked-cell)
 
 #![no_std]
 

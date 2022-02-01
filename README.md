@@ -14,7 +14,14 @@ will cause a panic.
 FreezeBox is compatible with `no_std` projects (no feature flags needed).
 It may be used in any environment with a memory allocator.
 
-### Example:
+FreezeBox uses unsafe code internally. To ensure soundness, the unit
+tests pass under Miri, and the unsafe code is simple and easy to
+understand.
+
+The minimum supported Rust version is 1.48.
+
+## Examples
+
 This example creates a shared data structure, then circles back to
 initialize one member.
 
@@ -22,26 +29,37 @@ initialize one member.
 use freezebox::FreezeBox;
 use std::sync::Arc;
 
+/// A data structure that we will initialize lazily.
 #[derive(Default)]
 struct Resources {
     name: FreezeBox<String>
 }
 
+// Create an instance of the `Resources` struct, which contains an
+// uninitialized `name` field.
 let resources = Arc::new(Resources::default());
+
+// Clone the Arc to emulate sharing with other threads, contexts,
+// or data structures.
 let res2 = resources.clone();
 
+// Here we emulate another thread accessing the shared data structure.
+// NOTE: it's still our responsibility to ensure that the FreezeBox
+// is initialized before anyone dereferences it.
+//
 let func = move || {
+    // explicit deref
     assert_eq!(*res2.name, "Hello!");
+    // implicit deref allows transparent access to inner methods
+    assert_eq!(res2.name.len(), 6);
 };
 
 resources.name.lazy_init("Hello!".to_string());
 func();
 ```
-
 ### Not quite what you were looking for?
 
 There are many similar crates out there:
-- [lazy_static](https://docs.rs/lazy_static/latest)
-- [once_cell](https://docs.rs/once_cell/latest)
-- [double-checked-cell](https://docs.rs/double-checked-cell/latest)
-- [mitochondria](https://docs.rs/mitochondria/latest)
+- [lazy_static](https://docs.rs/lazy_static)
+- [once_cell](https://docs.rs/once_cell)
+- [double-checked-cell](https://docs.rs/double-checked-cell)
