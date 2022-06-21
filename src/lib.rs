@@ -71,6 +71,7 @@ use alloc::boxed::Box;
 use core::any::type_name;
 use core::marker::PhantomData;
 use core::ops::Deref;
+use core::ptr::null_mut;
 use core::sync::atomic::{AtomicPtr, Ordering};
 use core::{mem, ptr};
 
@@ -109,6 +110,25 @@ impl<T> FreezeBox<T> {
                 fb.lazy_init(v);
                 fb
             }
+        }
+    }
+
+    /// Create a new `FreezeBox` in `const` context
+    ///
+    /// This is the same as `FreezeBox::default` except that it works in
+    /// const context, which is desirable for global `static` singleton objects.
+    ///
+    /// # Examples
+    /// ```
+    /// # use freezebox::FreezeBox;
+    /// static X: FreezeBox<String> = FreezeBox::const_default();
+    /// X.lazy_init("hello".to_string());
+    /// assert_eq!(*X, "hello");
+    /// ```
+    pub const fn const_default() -> Self {
+        Self {
+            inner: AtomicPtr::new(null_mut()),
+            phantom: PhantomData,
         }
     }
 
@@ -318,5 +338,12 @@ mod tests {
         let y = FreezeBox::<String>::default();
         let y2: Option<String> = y.into_inner();
         assert_eq!(y2, None);
+    }
+
+    #[test]
+    fn const_test() {
+        static X: FreezeBox<String> = FreezeBox::const_default();
+        X.lazy_init("hello".to_string());
+        assert_eq!(*X, "hello");
     }
 }
