@@ -1,4 +1,6 @@
-## Rust FreezeBox: a deref'able lazy-initialized container.
+<!-- cargo-sync-readme start -->
+
+# Rust FreezeBox: a deref'able lazy-initialized container.
 
 `FreezeBox<T>` is a container that can have two possible states:
 * uninitialized: deref is not allowed.
@@ -20,7 +22,7 @@ understand.
 
 The minimum supported Rust version is 1.48.
 
-## Examples
+# Examples
 
 This example creates a shared data structure, then circles back to
 initialize one member.
@@ -57,9 +59,11 @@ let func = move || {
 resources.name.lazy_init("Hello!".to_string());
 func();
 ```
-### Not quite what you were looking for?
+## Not quite what you were looking for?
 
 There are many similar crates out there:
 - [lazy_static](https://docs.rs/lazy_static)
 - [once_cell](https://docs.rs/once_cell)
 - [double-checked-cell](https://docs.rs/double-checked-cell)
+
+<!-- cargo-sync-readme end -->
