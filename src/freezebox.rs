@@ -218,7 +218,7 @@ impl<T> Drop for FreezeBox<T> {
 /// let x = FreezeBox::<Cell<u32>>::new();
 /// require_sync(&x); // must fail to compile.
 /// ```
-struct _Unused {} // Only exists to get the compile-fail doctest
+struct _Unused; // Only exists to get the compile-fail doctest
 
 #[cfg(test)]
 mod tests {

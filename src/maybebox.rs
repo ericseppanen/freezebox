@@ -216,7 +216,7 @@ impl<T> Drop for MaybeBox<T> {
 /// let x = MaybeBox::<Cell<u32>>::new();
 /// require_sync(&x); // must fail to compile.
 /// ```
-struct _Unused {} // Only exists to get the compile-fail doctest
+struct _Unused; // Only exists to get the compile-fail doctest
 
 #[cfg(test)]
 mod tests {
