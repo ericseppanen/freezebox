@@ -13,15 +13,6 @@ suitable for sharing objects first and initializing them later.
 Attempting to `lazy_init` more than once, or deref while uninitialized
 will cause a panic.
 
-FreezeBox is compatible with `no_std` projects (no feature flags needed).
-It may be used in any environment with a memory allocator.
-
-FreezeBox uses unsafe code internally. To ensure soundness, the unit
-tests pass under Miri, and the unsafe code is simple and easy to
-understand.
-
-The minimum supported Rust version is 1.48.
-
 # Examples
 
 This example creates a shared data structure, then circles back to
@@ -67,3 +58,14 @@ There are many similar crates out there:
 - [double-checked-cell](https://docs.rs/double-checked-cell)
 
 <!-- cargo-sync-readme end -->
+
+# Safety and Compatibility
+
+FreezeBox is compatible with `no_std` projects (no feature flags needed).
+It may be used in any environment with a memory allocator.
+
+FreezeBox uses unsafe code internally. To ensure soundness, the unit
+tests pass under Miri, and the unsafe code is simple and easy to
+understand.
+
+The minimum supported Rust version is 1.48.
