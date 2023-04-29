@@ -9,7 +9,7 @@ use core::ptr::null_mut;
 use core::sync::atomic::{AtomicPtr, Ordering};
 use core::{mem, ptr};
 
-/// `FreezeBox` is a deref'able lazy-initialized container.
+/// `FreezeBox` is a deref-able lazy-initialized container.
 ///
 /// A `FreezeBox<T>` can have two possible states:
 /// * uninitialized: deref is not allowed.
@@ -19,8 +19,49 @@ use core::{mem, ptr};
 /// `lazy_init` does not require a mutable reference, making `FreezeBox`
 /// suitable for sharing objects first and initializing them later.
 ///
+/// # Panics
+///
 /// Attempting to `lazy_init` more than once, or deref while uninitialized
 /// will cause a panic.
+///
+/// # Examples
+///
+/// This example creates a shared data structure, then initializes a member
+/// variable later.
+///
+/// ```
+/// use freezebox::FreezeBox;
+/// use std::sync::Arc;
+///
+/// /// A data structure that we will initialize late.
+/// #[derive(Default)]
+/// struct Resources {
+///     name: FreezeBox<String>
+/// }
+///
+/// // Create an instance of the `Resources` struct, which contains an
+/// // uninitialized `name` field.
+/// let resources = Arc::new(Resources::default());
+///
+/// // Clone the Arc to emulate sharing with other threads, contexts,
+/// // or data structures.
+/// let res2 = resources.clone();
+///
+/// // Here we emulate another thread accessing the shared data structure.
+/// // NOTE: it's still our responsibility to ensure that the FreezeBox
+/// // is initialized before anyone dereferences it.
+/// //
+/// let func = move || {
+///     // explicit deref
+///     assert_eq!(*res2.name, "Hello!");
+///     // implicit deref allows transparent access to inner methods
+///     assert_eq!(res2.name.len(), 6);
+/// };
+///
+/// resources.name.lazy_init("Hello!".to_string());
+/// func();
+/// ```
+
 pub struct FreezeBox<T> {
     inner: AtomicPtr<T>,
     phantom: PhantomData<T>,
@@ -68,7 +109,12 @@ impl<T> FreezeBox<T> {
 
     /// Initialize a `FreezeBox`.
     ///
+    /// The new value will be stored on the heap.
+    ///
+    /// # Panics
+    ///
     /// `lazy_init` will panic if the `FreezeBox` is already initialized.
+    /// If it panics, the input value will be dropped.
     pub fn lazy_init(&self, val: T) {
         let ptr = Box::into_raw(Box::new(val));
 

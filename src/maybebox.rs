@@ -20,7 +20,25 @@ use core::{mem, ptr};
 ///
 /// `MaybeBox` does not implement `Deref`; to access the contents call [`get`].
 ///
+/// # Panics
+///
 /// Attempting to `lazy_init` more than once will cause a panic.
+///
+/// [`get`]: [`MaybeBox::get`]
+///
+/// # Examples
+/// ```
+/// # use freezebox::MaybeBox;
+/// # let some_runtime_config = true;
+/// let x = MaybeBox::<String>::default();
+/// if some_runtime_config {
+///     x.lazy_init(String::from("hello"));
+/// }
+/// if let Some(val) = x.get() {
+///     println!("{}", val);
+/// }
+/// ```
+///
 pub struct MaybeBox<T> {
     inner: AtomicPtr<T>,
     phantom: PhantomData<T>,
@@ -68,7 +86,13 @@ impl<T> MaybeBox<T> {
 
     /// Initialize a `MaybeBox`.
     ///
-    /// `lazy_init` will panic if the `MaybeBox` is already initialized.
+    /// The new value will be stored on the heap.
+    ///
+    /// # Panics
+    ///
+    /// `lazy_init` will panic if the `FreezeBox` is already initialized.
+    /// If it panics, the input value will be dropped.
+    ///
     pub fn lazy_init(&self, val: T) {
         let ptr = Box::into_raw(Box::new(val));
 
@@ -124,13 +148,13 @@ impl<T> MaybeBox<T> {
         unsafe { ptr.as_ref() }
     }
 
-    /// Test whether a MaybeBox is initialized.
+    /// Test whether a `MaybeBox` is initialized.
     pub fn is_initialized(&self) -> bool {
         let ptr = self.inner.load(Ordering::Acquire);
         !ptr.is_null()
     }
 
-    /// Consume the MaybeBox and return its contents.
+    /// Consume the `MaybeBox` and return its contents.
     pub fn into_inner(self) -> Option<T> {
         let ptr = self.inner.load(Ordering::Acquire);
         // Prevent Drop::drop() from being called on the MaybeBox
@@ -151,11 +175,13 @@ impl<T> MaybeBox<T> {
 }
 
 impl<T: Deref> MaybeBox<T> {
-    /// Try to get the `Deref::Target` for the data in the `MaybeBox`.
+    /// Try to `Deref` the contents of the the `MaybeBox`.
     ///
     /// This is helpful when you want the `Deref` form of the
     /// data in the `MaybeBox`. For example, when called on a
     /// `MaybeBox<String>`, this will return `Option<&str>`.
+    ///
+    /// If the `MaybeBox` is uninitialized, this will return None.
     pub fn get_as_deref(&self) -> Option<&T::Target> {
         let ptr = self.inner.load(Ordering::Acquire);
         match unsafe { ptr.as_ref() } {
