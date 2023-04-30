@@ -15,5 +15,4 @@ rust-version = "1.48"
 # No dependencies, yay!
 
 [package.metadata.release]
-dev-version = false
 pre-release-commit-message = "release {{version}}"
