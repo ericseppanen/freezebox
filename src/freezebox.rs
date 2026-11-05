@@ -115,7 +115,21 @@ impl<T> FreezeBox<T> {
     /// `lazy_init` will panic if the `FreezeBox` is already initialized.
     /// If it panics, the input value will be dropped.
     pub fn lazy_init(&self, val: T) {
-        let ptr = Box::into_raw(Box::new(val));
+        if self.try_lazy_init(Box::new(val)).is_err() {
+            panic!(
+                "lazy_init on already-initialized FreezeBox<{}>",
+                type_name::<T>()
+            );
+        }
+    }
+
+    /// Initialize a `FreezeBox` fallibly.
+    ///
+    /// Consumes an already-boxed value into the FreezeBox if the FreezeBox
+    /// has not already been initialized. Otherwise, returns the argument
+    /// in the [`Err`] variant.
+    pub fn try_lazy_init(&self, val: Box<T>) -> Result<(), Box<T>> {
+        let ptr = Box::into_raw(val);
 
         // Attempt to atomically swap from nullptr to `ptr`.
         //
@@ -141,22 +155,18 @@ impl<T> FreezeBox<T> {
             .is_err()
         {
             // The compare_exchange failed, meaning a double-init was
-            // attempted and we should panic.
-            //
-            // Before we do, retake ownership of the new pointer so that
-            // we don't leak its memory.
+            // attempted. Before returning, retake ownership of the new
+            // pointer so that we don't leak its memory.
             //
             // SAFETY: `ptr` was just created above using `Box::into_raw`.
             // Because compare_exchange failed, we know that it is still
             // the unique owner of the input value. So we can reclaim
             // ownership here and drop the result.
 
-            let _val = unsafe { Box::<T>::from_raw(ptr) };
-
-            panic!(
-                "lazy_init on already-initialized FreezeBox<{}>",
-                type_name::<T>()
-            );
+            let returned_val = unsafe { Box::<T>::from_raw(ptr) };
+            Err(returned_val)
+        } else {
+            Ok(())
         }
     }
 
@@ -305,6 +315,15 @@ mod tests {
         let x = FreezeBox::<String>::default();
         x.lazy_init("first".to_string());
         x.lazy_init("second".to_string());
+    }
+
+    #[test]
+    fn fail_double_init() {
+        let x = FreezeBox::<String>::default();
+        x.try_lazy_init("first".to_string().into())
+            .expect("first init should succeed");
+        x.try_lazy_init("second".to_string().into())
+            .expect_err("second init should fail");
     }
 
     #[test]
